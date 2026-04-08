@@ -5,7 +5,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from collections.abc import Callable
 from uuid import uuid4
 from colorama import Fore,init
-
+from random import randint
+from copy import copy
 init()
 class UnsupportedAlgorithm(Exception) : 
     pass
@@ -17,15 +18,16 @@ class User:
     def __repr__(self) -> str:
         return f"{self.userID}"
 class Node : 
-    def __init__(self,id,left:Node|None=None,right:Node|None=None,parent:Node|None=None, key:bytes=b"",user:User|None = None) -> None:
+    def __init__(self,id,left:Node|None=None,right:Node|None=None,parent:Node|None=None, key:bytes=b"",keyid:int=0,user:User|None = None) -> None:
         self.left:Node | None = left    
         self.right:Node | None = right
         self.parent:Node | None = parent
         self.key: bytes = key
         self.id = id
         self.user =user
-
-
+        self.keyid = keyid
+    def __copy__(self) : 
+        return Node(self.id,self.left,self.right,self.parent,self.key,self.keyid,self.user)
     def isInternal(self) -> bool : 
         return self.left is not None or self.right is not None
     def __repr__(self,prefix="") -> str:
@@ -38,26 +40,32 @@ class LKH :
         #self.numberOfReceiver:int =0
         self.algorithm = "AES256-GCM"
         self.sendGroup = sendGroup
-        self.root.key = self.generateKey()
+
+        
+        self.usedKeyId:dict[int,bool] = {}
         self.depth:dict[int,list[Node]] = {}
         self.users:dict[str,Node] = {}
         
+        self.root.key = self.generateKey()
+        self.root.keyid = self.generateKeyId()
+    
+    
     def updateKey(self,node:Node) :
         """
         Mets à jours la clé de node jusqu'à root
         """
         path = {}
-        current:Node = node 
+        current:None|Node = node 
         while current is not None : 
             
             oldKey = current.key
             current.key = self.generateKey()
-            path[current.id] = current.key
+            path[current.keyid] = current.key
             if current.isInternal() : 
-                packet = self.encrypt(oldKey,current.key,current.id.to_bytes(8))
+                packet = self.encrypt(key=oldKey,data=current.key,aad=current.keyid.to_bytes(8))
                 
                 if self.debug : 
-                    print(f"Sending keys {current.id}")
+                    print(f"Sending keys {current.keyid}")
                 self.sendGroup(packet)
             current = current.parent
         if node.user is not None :
@@ -82,10 +90,8 @@ class LKH :
                 return AESGCM.generate_key(256)
             case _ : 
                 raise UnsupportedAlgorithm
-    def isSlotAvailable(self) -> bool : 
-        if len(self.users)<=0:
-            return False
-        return  math.floor(math.log2(len(self.users)))==len(self.users )
+            
+
         
     def splitNode(self,nodeToSplit:Node,userToAdd:User):
         """
@@ -94,13 +100,23 @@ class LKH :
         
         right= Node(2*nodeToSplit.id+1,user=userToAdd)
         self.users[userToAdd.userID] = right
-        left = Node(2*nodeToSplit.id,user=nodeToSplit.user,key=nodeToSplit.key)  
-        nodeToSplit.user = None 
-        left.parent = nodeToSplit
         right.parent = nodeToSplit
+        
+        left = copy(nodeToSplit)
+        
+        left.id = nodeToSplit.id * 2    
+        nodeToSplit.user = None 
+        
+        left.parent = nodeToSplit
+        
+        
         nodeToSplit.right = right
         nodeToSplit.left = left
+        nodeToSplit.keyid = self.generateKeyId()
+        
+        
         assert left.user is not None
+        
         self.users[left.user.userID] = left
         self.users[userToAdd.userID] = right
         parentDepth = math.floor(math.log2(nodeToSplit.id))
@@ -131,28 +147,21 @@ class LKH :
         targetDepth = min([i for i in self.depth if len(self.depth[i])>0])
         nextNodeiD = min([i.id for i in self.depth[targetDepth]])
         parent = [i for i in self.depth[targetDepth] if i.id ==nextNodeiD][0]
+        print(f"Going to split node {parent}")
         self.splitNode(parent,user)
-        
     
+    
+    def generateKeyId(self) : 
+        out = randint(0,2**(8*8)-1)
+        while out in self.usedKeyId : 
+             out = randint(0,2**(8*8)-1)
+        return out
     
     def removeUser(self) : 
         pass
     def __repr__(self) -> str:
-        return f"LKH Tree of {len(self.users)} recievers using {self.algorithm}\nTree:\n{self.root}"
+        return f"LKH Tree of {len(self.users)} recievers using {Fore.GREEN + self.algorithm + Fore.WHITE}\nTree:\n{self.root}"
 
     
-if __name__ == "__main__" : 
-    UserCount = 0 
-    def CreateDebugUser() : 
-        global UserCount
-        UserCount+=1
-        String = f"User{UserCount} "
-        return User(str(uuid4()),lambda x : print(String + x.hex()))
-    test = LKH(lambda x : print(f"Global {x.hex()}"),debug=True)
-    User1 = CreateDebugUser()
-    print(test)
-    test.addUser(User1)
-    print(test)
-    test.addUser(CreateDebugUser())
-    print(test)
+
     

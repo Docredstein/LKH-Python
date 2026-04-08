@@ -7,7 +7,7 @@ Je vais (essayer d') implémenter l'architecture du schéma classique présenté
 Le serveur maintient l'arbre logique et peut s'adresser aux clients par 2 méthodes : un unicast vers chaque membre (modélisé par une fonction send propre à chaque User) et par l'arbre multicast (modélisé par la fonction sendGroup du LKH)
 ### Client 
 Du côté client, il ne connait pas spécifiquement sa place dans l'arbre et doit juste maintenir un dictionnaire des clés qui lui ont été envoyées.  
-
+Il faut donc séparer id de noeud et id de clé. l'id de noeud peut changer avec les changement topologiques de l'arbre et l'id de clé ne change qu'à la destruction du noeud.
 ## Paquets
 ### Changement de clé 
 ```
