@@ -163,5 +163,4 @@ class LKH :
         return f"LKH Tree of {len(self.users)} recievers using {Fore.GREEN + self.algorithm + Fore.WHITE}\nTree:\n{self.root}"
 
     
-
     
