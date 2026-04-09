@@ -8,6 +8,11 @@ from colorama import Fore,init
 from random import randint
 from copy import copy
 init()
+
+
+
+
+
 class UnsupportedAlgorithm(Exception) : 
     pass
 
@@ -31,9 +36,9 @@ class Node :
     def isInternal(self) -> bool : 
         return self.left is not None or self.right is not None
     def __repr__(self,prefix="") -> str:
-        return f"{prefix}|Node {self.id} [{Fore.YELLOW}{self.key.hex()}{Fore.WHITE}] : {self.user}" + ("" if self.left is None else f"\n{self.left.__repr__(prefix+"\t")}") + ("" if self.right is None else f"\n{self.right.__repr__(prefix+"\t")}") 
+        return f"{prefix}|Node {self.id} {self.keyid} [{Fore.YELLOW}{self.key.hex()}{Fore.WHITE}] : {self.user.userID if self.user is not None else "None"}" + ("" if self.left is None else f"\n{self.left.__repr__(prefix+"\t")}") + ("" if self.right is None else f"\n{self.right.__repr__(prefix+"\t")}") 
 class LKH : 
-    
+    numberOfKey = 0
     def __init__(self,sendGroup:Callable[[bytes],None],debug=False) -> None:
         self.root:Node = Node(1)
         self.debug = debug
@@ -55,24 +60,40 @@ class LKH :
         Mets à jours la clé de node jusqu'à root
         """
         path = {}
-        current:None|Node = node 
+        current:None|Node = node
+        lastOne:None|Node = None 
         while current is not None : 
             
             oldKey = current.key
+            
             current.key = self.generateKey()
+            print(f"[Node  : {current.id}][{current.keyid}]Old : {oldKey.hex()} New : {current.key.hex()}")
             path[current.keyid] = current.key
-            if current.isInternal() : 
-                packet = self.encrypt(key=oldKey,data=current.key,aad=current.keyid.to_bytes(8))
+            if lastOne != None: 
+                
+                assert current.left is not None 
+                assert current.right is not None 
+                
+                packet = self.encrypt(key=current.left.key,data=(current == self.root).to_bytes()+current.keyid.to_bytes(8)+current.key,aad=current.left.keyid.to_bytes(8))
                 
                 if self.debug : 
-                    print(f"Sending keys {current.keyid}")
+                    print(f"Sending keys {current.keyid} to node {current.left.id}: {packet.hex()}")
                 self.sendGroup(packet)
+                
+                packet = self.encrypt(key=current.right.key,data=(current == self.root).to_bytes()+current.keyid.to_bytes(8)+current.key,aad=current.right.keyid.to_bytes(8))
+                
+                if self.debug : 
+                    print(f"Sending keys {current.keyid} to node {current.right.id}: {packet.hex()}")
+                self.sendGroup(packet)
+             
+                
+            lastOne = current    
             current = current.parent
         if node.user is not None :
             for i in path : 
                 if self.debug :
                     print(f"Private send of key {i}")
-                node.user.send(i.to_bytes(8)+path[i])
+                node.user.send((i==self.root.keyid).to_bytes()+i.to_bytes(8)+path[i])
                 
     def encrypt(self,key:bytes,data:bytes,aad:bytes) -> bytes :
         match self.algorithm :
@@ -98,7 +119,7 @@ class LKH :
         Sépare la nodeToSplit en ajoutant la nodeToAdd et en descendant son utilisateur
         """
         
-        right= Node(2*nodeToSplit.id+1,user=userToAdd)
+        right= Node(2*nodeToSplit.id+1,user=userToAdd,keyid=self.generateKeyId())
         self.users[userToAdd.userID] = right
         right.parent = nodeToSplit
         
@@ -126,9 +147,11 @@ class LKH :
             self.depth[parentDepth+1].append(right)
         else :
             self.depth[parentDepth+1] = [left,right]
+        if self.debug :
+            print(f"Before update topo : {self}")
         self.updateKey(right)
         
-    def mergeNode(self) : 
+    def mergeNode(self,parent:Node,children:Node) : 
         pass    
     
 
@@ -140,7 +163,7 @@ class LKH :
             if self.debug:
                 print("First User !")
             self.root.user = user
-            self.updateKey(self.root) 
+            self.updateKey(self.root)
             self.users[user.userID] = self.root
             self.depth[0] = [self.root]
             return 
@@ -151,13 +174,21 @@ class LKH :
         self.splitNode(parent,user)
     
     
-    def generateKeyId(self) : 
+    def generateKeyId(self) :
+        if self.debug : 
+            LKH.numberOfKey+=1
+            return  LKH.numberOfKey
         out = randint(0,2**(8*8)-1)
         while out in self.usedKeyId : 
              out = randint(0,2**(8*8)-1)
         return out
     
-    def removeUser(self) : 
+    def removeUser(self,user:User) : 
+        node = self.users[user.userID]
+        if node==self.root:
+            pass
+        
+        
         pass
     def __repr__(self) -> str:
         return f"LKH Tree of {len(self.users)} recievers using {Fore.GREEN + self.algorithm + Fore.WHITE}\nTree:\n{self.root}"
