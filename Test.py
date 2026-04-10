@@ -3,8 +3,9 @@ import Tree
 from colorama import Fore
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
-
-class TestUser(Tree.User) : 
+import matplotlib.pyplot as plt
+class TestUser(Tree.User) :
+    changedKeys = set() 
     instances:list[TestUser] = []
     totalCount = 1
     def __init__(self) -> None:
@@ -33,25 +34,26 @@ class TestUser(Tree.User) :
         aesgcm = AESGCM(key)
         try : 
             clear = aesgcm.decrypt(nonce=nonce,data=ct,associated_data=rawkeyId)
-            isSessionKey = bool.from_bytes(clear[0:])
-            newKeyId = int.from_bytes(clear[1:9])
-            newKey = clear[9:]
-        except InvalidTag : 
-            print(f"Invalid decrypt for {self.userID}")
+            UpdatePacket = Tree.KeyUpdatePacket.fromBytes(clear)
+        except InvalidTag as e: 
+            print(f"Invalid decrypt for {self.userID} {e}")
             return
-        print(f"{self.userID} received group key {newKeyId}")
-        self.keys[newKeyId] = newKey
-        if isSessionKey : 
-            self.sessionKey=newKeyId
+        print(f"{self.userID} received group key {UpdatePacket.newKeyid}")
+        self.keys[UpdatePacket.newKeyid] = UpdatePacket.newKey
+        TestUser.changedKeys.add(UpdatePacket.newKeyid)
+        if UpdatePacket.isSessionKey : 
+            self.sessionKey=UpdatePacket.newKeyid
+        if UpdatePacket.deleteNewKey : 
+            del self.keys[UpdatePacket.newKeyid]
     
     def __repr__(self) -> str:
         liste = []
         for keyId in self.keys :
             if keyId == self.sessionKey : 
-                liste.append(f"{Fore.LIGHTRED_EX}{keyId}:{self.keys[keyId].hex()}{Fore.WHITE}")
+                liste.append(f"{Fore.LIGHTRED_EX}{keyId}:{self.keys[keyId].hex()}{Fore.RESET}")
             else : 
                 liste.append(f"{keyId}:{self.keys[keyId].hex()}")
-        return f"TestUser [{Fore.GREEN + self.userID + Fore.WHITE}] keys : \n - {"\n - ".join(liste)}"
+        return f"TestUser [{Fore.GREEN + self.userID + Fore.RESET}] keys : \n - {"\n - ".join(liste)}"
     @staticmethod
     def sendGroup(data:bytes) -> None : 
         
@@ -59,10 +61,10 @@ class TestUser(Tree.User) :
             i.receiveGroup(data)
 
 
-if __name__ == "__main__" : 
-    
+def test_Add() : 
     test = Tree.LKH(TestUser.sendGroup,debug=True)
     Users = [TestUser() for i in range(5)]
+    printUsers = lambda : print("\n".join([str(i) for i in Users]))
     print(test)
     test.addUser(Users[0])
     print(Users[0])
@@ -82,4 +84,44 @@ if __name__ == "__main__" :
     print(test)
     test.addUser(Users[4])
     print(test)
-    print(Users)
+    printUsers()
+def test_del() : 
+    test = Tree.LKH(TestUser.sendGroup,debug=True)
+    Users = [TestUser() for i in range(5)]
+    
+    printUsers = lambda : print("\n".join([str(i) for i in Users]))
+    test.addUser(Users[0])
+    test.addUser(Users[1])
+    test.addUser(Users[2])
+    
+    print(test)
+    test.removeUser(Users[2])
+    print(test)
+    printUsers()
+    test.addUser(Users[2])
+    print(test)
+    printUsers()
+    Tree.draw_tree_matplotlib(test.root)
+    plt.show()
+    
+def show_draw(): 
+    test = Tree.LKH(TestUser.sendGroup,debug=True)
+    Users = [TestUser() for i in range(32)]
+    
+    for i in Users : 
+        test.addUser(i)
+        keyids = list(TestUser.changedKeys)
+        TestUser.changedKeys= set()
+        fig = Tree.draw_tree_matplotlib(test.root,maxY=5,specialKeys=keyids)
+        fig.savefig(f"./images/tree_{i.userID}.svg",dpi=200)
+        
+if __name__ == "__main__" : 
+    
+    
+    
+    
+    #test_Add()
+    #test_del()
+    show_draw()
+    pass
+    
