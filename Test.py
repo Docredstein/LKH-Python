@@ -8,6 +8,8 @@ class TestUser(Tree.User) :
     changedKeys = set() 
     instances:list[TestUser] = []
     totalCount = 1
+    numberOfMulticast = 0
+    numberOfUnicast = 0
     def __init__(self) -> None:
         super().__init__(userID=str(TestUser.totalCount), send=self.receive)
         TestUser.totalCount+=1
@@ -59,7 +61,14 @@ class TestUser(Tree.User) :
         
         for i in TestUser.instances : 
             i.receiveGroup(data)
-
+    @staticmethod
+    def reset() : 
+        TestUser.changedKeys = set()
+        TestUser.numberOfMulticast = 0
+        TestUser.numberOfUnicast = 0
+    @staticmethod
+    def getStats() : 
+        return {"keys":TestUser.changedKeys,"multicast":TestUser.numberOfMulticast,"unicast":TestUser.numberOfUnicast}
 
 def test_Add() : 
     test = Tree.LKH(TestUser.sendGroup,debug=True)
@@ -110,12 +119,30 @@ def show_draw():
     
     for i in Users : 
         test.addUser(i)
-        keyids = list(TestUser.changedKeys)
-        TestUser.changedKeys= set()
-        fig = Tree.draw_tree_matplotlib(test.root,maxY=5,specialKeys=keyids)
-        fig.savefig(f"./images/tree_{i.userID}.svg",dpi=200)
-        
+        stats = TestUser.getStats()
+        TestUser.reset()
+        fig = Tree.draw_tree_matplotlib(test.root,maxY=7,specialKeys=stats["keys"])
+        fig.savefig(f"./images/tree_A{int(i.userID):02d}.svg",dpi=200)
+        fig.clear()
+    for i in Users : 
+        if i.userID == "18" :
+            a = 1
+        test.removeUser(i)
+        stats = TestUser.getStats()
+        TestUser.reset()
+        fig = Tree.draw_tree_matplotlib(test.root,maxY=7,specialKeys=stats["keys"])
+        fig.savefig(f"./images/tree_R{int(i.userID):02d}.svg",dpi=200)
+        fig.clear()
+    
+    
+def show_Worst_Case_remove() : 
+    test = Tree.LKH(TestUser.sendGroup,debug=True)
+    Users = [TestUser() for i in range(32)]
+    for i in Users : 
+        test.addUser(i)
+    
 if __name__ == "__main__" : 
+
     
     
     

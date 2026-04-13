@@ -52,7 +52,7 @@ class User:
     def __repr__(self) -> str:
         return f"{self.userID}"
 class Node : 
-    def __init__(self,id,left:Node|None=None,right:Node|None=None,parent:Node|None=None, key:bytes=b"",keyid:int=0,user:User|None = None) -> None:
+    def __init__(self,id,left:Node|None=None,right:Node|None=None,parent:Node|None=None, key:bytes=b"",keyid:int=0,user:User|None = None,depth:int = 0) -> None:
         self.left:Node | None = left    
         self.right:Node | None = right
         self.parent:Node | None = parent
@@ -60,11 +60,21 @@ class Node :
         self.id = id
         self.user =user
         self.keyid = keyid
-
+        self.depth = depth
     def __copy__(self) : 
         return Node(self.id,self.left,self.right,self.parent,self.key,self.keyid,self.user)
     def isInternal(self) -> bool : 
         return self.left is not None or self.right is not None
+    def fixIndex(self) : 
+        
+        if self.right is not None : 
+            self.right.id = self.id*2 +1
+            self.right.depth = self.depth+1
+            self.right.fixIndex()
+        if self.left is not None : 
+            self.left.id = self.id*2 
+            self.left.depth = self.depth+1
+            self.left.fixIndex()
     def __repr__(self,prefix="") -> str:
         return f"{prefix}|Node {self.id} {self.keyid} [{Fore.YELLOW}{self.key.hex()}{Fore.RESET}] : {self.user.userID if self.user is not None else "None"}" + ("" if self.left is None else f"\n{self.left.__repr__(prefix+"\t")}") + ("" if self.right is None else f"\n{self.right.__repr__(prefix+"\t")}") 
 class LKH : 
@@ -162,7 +172,7 @@ class LKH :
         right= Node(2*nodeToSplit.id+1,user=userToAdd,keyid=self.generateKeyId())
         self.users[userToAdd.userID] = right
         right.parent = nodeToSplit
-        
+        parentDepth = nodeToSplit.depth
         left = copy(nodeToSplit)
         
         left.id = nodeToSplit.id * 2    
@@ -180,8 +190,11 @@ class LKH :
         
         self.users[left.user.userID] = left
         self.users[userToAdd.userID] = right
-        parentDepth = math.floor(math.log2(nodeToSplit.id))
+        #parentDepth = math.floor(math.log2(nodeToSplit.id))
+        
         self.depth[parentDepth].pop(self.depth[parentDepth].index(nodeToSplit))
+        left.depth = parentDepth+1
+        right.depth = parentDepth+1
         if parentDepth+1 in self.depth : 
             self.depth[parentDepth+1].append(left)
             self.depth[parentDepth+1].append(right)
@@ -197,9 +210,16 @@ class LKH :
             raise Exception("Unable to merge node, no parent")
         otherNode = parent.left if parent.right == nodeToBeDeleted else parent.right
         assert otherNode is not None
-        parentDepth =  math.floor(math.log2(parent.id))
-        self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(otherNode))
+        #parentDepth =  math.floor(math.log2(parent.id))
+        parentDepth = parent.depth
+        #self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(otherNode))
+        #self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(nodeToBeDeleted))
+        """C'est incorrect, il est possible qu'un utilisateurs partent et que son frère ne soit pas une feuille et donc pas dans self.depth"""
+        if (otherNode in self.depth[parentDepth+1]) : 
+            self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(otherNode))
+        
         self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(nodeToBeDeleted))
+
         if len(self.depth[parentDepth])<=0 :
             self.depth[parentDepth] = [parent]
         else : 
@@ -207,11 +227,23 @@ class LKH :
             
         parent.keyid = otherNode.keyid
         parent.key = otherNode.key
-        parent.left = None
-        parent.right = None 
+        parent.left = otherNode.left
+        parent.right = otherNode.right 
         parent.user = otherNode.user
-        assert parent.user is not None
-        self.users[parent.user.userID] = parent
+        
+        
+        # C'est vraiment pas idéal mais je ne suis pas sûr de comment faire mieux 
+        
+        if parent.left is not None : 
+            parent.left.parent = parent 
+        if parent.right is not None : 
+            parent.right.parent = parent
+        
+        # assert parent.user is not None
+        # C'est incorrect, il est possible que othernode ne soit pas une feuille
+        if parent.user is not None:
+            self.users[parent.user.userID] = parent
+        parent.fixIndex()
         if self.debug:
             print(f"After Update : \n{self}")
             #print(parent.parent)
@@ -264,7 +296,7 @@ class LKH :
         
         self.mergeNode(node)
         return 
-        
+    
         
         
     def __repr__(self) -> str:
@@ -277,7 +309,7 @@ def draw_tree_matplotlib(root,maxY=None,specialKeys:list[int]=[]):
     fig, ax = plt.subplots(figsize=(20, 10))
     ax.set_axis_off()
 
-    def draw_node(node, x, y, dx,ax):
+    def draw_node(node:Node, x, y, dx,ax):
         if node is None:
             return
         
@@ -285,6 +317,8 @@ def draw_tree_matplotlib(root,maxY=None,specialKeys:list[int]=[]):
         ax.text(x, y, f"{node.id}", ha='center', va='center',
                 bbox=dict(boxstyle="circle", fc="lightblue" if node.keyid not in specialKeys else "lightcoral", ec="black"))
         ax.text(x,y-0.3,f"{node.keyid}",ha='center',va='center',fontsize=8)
+        if node.user is not None : 
+            ax.text(x,y-0.8,f"{node.user.userID}",ha='center',va='center',fontsize=16,c="red")
         # Enfant gauche
         if node.left:
             x_left = x - dx
@@ -300,7 +334,7 @@ def draw_tree_matplotlib(root,maxY=None,specialKeys:list[int]=[]):
             draw_node(node.right, x_right, y_child, dx / 2,ax)
 
     draw_node(root, x=0, y=0, dx=4,ax=ax)
-    ax.set_xlim(-7.5, 7.5)
+    ax.set_xlim(-10, 10)
     if maxY is not None :
         
         ax.set_ylim(-maxY, 0.1)
