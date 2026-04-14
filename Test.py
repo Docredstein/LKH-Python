@@ -4,6 +4,7 @@ from colorama import Fore
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 import matplotlib.pyplot as plt
+import random
 class TestUser(Tree.User) :
     changedKeys = set() 
     instances:list[TestUser] = []
@@ -124,8 +125,11 @@ def show_draw():
         fig = Tree.draw_tree_matplotlib(test.root,maxY=7,specialKeys=stats["keys"])
         fig.savefig(f"./images/tree_A{int(i.userID):02d}.svg",dpi=200)
         fig.clear()
+        
+
     for i in Users : 
         if i.userID == "18" :
+ 
             a = 1
         test.removeUser(i)
         stats = TestUser.getStats()
@@ -133,14 +137,54 @@ def show_draw():
         fig = Tree.draw_tree_matplotlib(test.root,maxY=7,specialKeys=stats["keys"])
         fig.savefig(f"./images/tree_R{int(i.userID):02d}.svg",dpi=200)
         fig.clear()
+        print(test.depth)
     
     
 def show_Worst_Case_remove() : 
     test = Tree.LKH(TestUser.sendGroup,debug=True)
-    Users = [TestUser() for i in range(32)]
+    Users = [TestUser() for i in range(4)]
     for i in Users : 
         test.addUser(i)
+    fig = Tree.draw_tree_matplotlib(test.root,maxY=7)
+    fig.savefig(f"./images/DebugStart.png",dpi=200)
+    fig.clear()
+    test.removeUser(Users[2])
+    fig = Tree.draw_tree_matplotlib(test.root,maxY=7)
+    fig.savefig(f"./images/DebugR3.png",dpi=200)
+    fig.clear()
+    test.removeUser(Users[0])
+    fig = Tree.draw_tree_matplotlib(test.root,maxY=7)
+    fig.savefig(f"./images/DebugR1.png",dpi=200)
+    fig.clear()
     
+    for i in test.depth : 
+        print(f"Layer {i}: {test.depth[i]}")    
+    
+    
+    
+    test.removeUser(Users[1])
+    fig = Tree.draw_tree_matplotlib(test.root,maxY=7)
+    fig.savefig(f"./images/DebugR2.png",dpi=200)
+    fig.clear()
+    
+    
+    test.removeUser(Users[3])
+    fig = Tree.draw_tree_matplotlib(test.root,maxY=7)
+    fig.savefig(f"./images/DebugR4.png",dpi=200)
+    fig.clear()
+    
+def randomTest(n = 10000, nuser = 256) : 
+    test = Tree.LKH(TestUser.sendGroup,debug=True)
+    Users = [TestUser() for i in range(nuser)]
+    isInGraph = [0]*nuser
+    
+    for essais in range(n) : 
+        i = random.randrange(0,nuser)
+        if isInGraph[i] : 
+            test.removeUser(Users[i])
+        else :
+            test.addUser(Users[i])
+        isInGraph[i] = 1- isInGraph[i]
 if __name__ == "__main__" : 
 
     
@@ -149,6 +193,7 @@ if __name__ == "__main__" :
     
     #test_Add()
     #test_del()
-    show_draw()
+    #show_draw()
+    #show_Worst_Case_remove()
     pass
     

@@ -88,9 +88,10 @@ class LKH :
 
         
         self.usedKeyId:dict[int,bool] = {}
-        self.depth:dict[int,list[Node]] = {}
+        #self.depth:dict[int,list[Node]] = {}
+        self.depth:dict[int,set[int]] = {} #On stoque les keyId
         self.users:dict[str,Node] = {}
-        
+        self.nodes: dict[int,Node] = {}
         self.root.key = self.generateKey()
         self.root.keyid = self.generateKeyId()
     
@@ -170,11 +171,13 @@ class LKH :
         """
         
         right= Node(2*nodeToSplit.id+1,user=userToAdd,keyid=self.generateKeyId())
+        
         self.users[userToAdd.userID] = right
         right.parent = nodeToSplit
         parentDepth = nodeToSplit.depth
         left = copy(nodeToSplit)
-        
+        print(self.depth)
+        self.depth[parentDepth].remove(nodeToSplit.keyid)
         left.id = nodeToSplit.id * 2    
         nodeToSplit.user = None 
         
@@ -185,6 +188,9 @@ class LKH :
         nodeToSplit.left = left
         nodeToSplit.keyid = self.generateKeyId()
         
+        self.nodes[right.keyid] = right
+        self.nodes[left.keyid] = left
+        self.nodes[nodeToSplit.keyid] = nodeToSplit
         
         assert left.user is not None
         
@@ -192,18 +198,34 @@ class LKH :
         self.users[userToAdd.userID] = right
         #parentDepth = math.floor(math.log2(nodeToSplit.id))
         
-        self.depth[parentDepth].pop(self.depth[parentDepth].index(nodeToSplit))
+        #self.depth[parentDepth].pop(self.depth[parentDepth].index(nodeToSplit))
+        
         left.depth = parentDepth+1
         right.depth = parentDepth+1
         if parentDepth+1 in self.depth : 
-            self.depth[parentDepth+1].append(left)
-            self.depth[parentDepth+1].append(right)
+            self.depth[parentDepth+1].add(left.keyid)
+            self.depth[parentDepth+1].add(right.keyid)
         else :
-            self.depth[parentDepth+1] = [left,right]
+            self.depth[parentDepth+1] = set([left.keyid,right.keyid])
         if self.debug :
             print(f"Before update topo : {self}")
         self.updateKey(right)
-        
+    
+    def fixDepthDict(self,node:Node,initialDepth:int) :
+        if node.user is not None : 
+            #self.depth[node.depth].pop(self.depth[node.depth].index(node))
+            self.depth[node.depth].remove(node.keyid)
+            node.depth = initialDepth
+            if node.depth in self.depth : 
+                self.depth[node.depth].add(node.keyid)
+            else : 
+                self.depth[node.depth] = set([node.keyid])
+        else : 
+            assert node.left is not None
+            self.fixDepthDict(node.left,initialDepth=initialDepth+1)
+            assert node.right is not None 
+            self.fixDepthDict(node.right,initialDepth+1)
+     
     def mergeNode(self,nodeToBeDeleted:Node) : 
         parent = nodeToBeDeleted.parent    
         if parent is None : 
@@ -215,23 +237,28 @@ class LKH :
         #self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(otherNode))
         #self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(nodeToBeDeleted))
         """C'est incorrect, il est possible qu'un utilisateurs partent et que son frère ne soit pas une feuille et donc pas dans self.depth"""
-        if (otherNode in self.depth[parentDepth+1]) : 
-            self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(otherNode))
+        #if (otherNode in self.depth[parentDepth+1]) : 
+        #    self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(otherNode))
         
-        self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(nodeToBeDeleted))
+        #self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(nodeToBeDeleted))
+        print(parentDepth)
+        print(self.depth)
+        self.depth[parentDepth+1].remove(nodeToBeDeleted.keyid)
+        
 
-        if len(self.depth[parentDepth])<=0 :
-            self.depth[parentDepth] = [parent]
-        else : 
-            self.depth[parentDepth].append(parent)
+
+        
             
         parent.keyid = otherNode.keyid
         parent.key = otherNode.key
         parent.left = otherNode.left
         parent.right = otherNode.right 
         parent.user = otherNode.user
-        
-        
+        if len(self.depth[parentDepth])<=0 :
+            self.depth[parentDepth] = set([parent.keyid])
+        else : 
+            self.depth[parentDepth].add(parent.keyid)
+        self.fixDepthDict(parent,parentDepth)
         # C'est vraiment pas idéal mais je ne suis pas sûr de comment faire mieux 
         
         if parent.left is not None : 
@@ -261,11 +288,15 @@ class LKH :
             self.root.user = user
             self.updateKey(self.root)
             self.users[user.userID] = self.root
-            self.depth[0] = [self.root]
+            self.depth[0] = set([self.root.id])
+            self.nodes[self.root.id] = self.root
             return 
         targetDepth = min([i for i in self.depth if len(self.depth[i])>0])
-        nextNodeiD = min([i.id for i in self.depth[targetDepth]])
-        parent = [i for i in self.depth[targetDepth] if i.id ==nextNodeiD][0]
+        for i in self.depth[targetDepth] : 
+            
+            parent = self.nodes[i]
+            break
+        #parent = [i for i in self.depth[targetDepth] if i.id ==nextNodeiD][0]
         
         print(f"Going to split node {parent}")
         self.splitNode(parent,user)
@@ -292,6 +323,7 @@ class LKH :
             self.depth = {}
             self.root.key = b""
             self.usedKeyId = {}
+            self.nodes = {}
             return 
         
         self.mergeNode(node)
