@@ -8,7 +8,7 @@ from colorama import Fore,init
 from random import randint
 from copy import copy
 import matplotlib.pyplot as plt
-
+from matplotlib.axes import Axes
 init()
 
 
@@ -89,9 +89,9 @@ class LKH :
         
         self.usedKeyId:dict[int,bool] = {}
         #self.depth:dict[int,list[Node]] = {}
-        self.depth:dict[int,set[int]] = {} #On stoque les keyId
+        self.depth:dict[int,set[int]] = {} #Association Couche -> keyId
         self.users:dict[str,Node] = {}
-        self.nodes: dict[int,Node] = {}
+        self.nodes: dict[int,Node] = {} #Association Keyid -> Node
         self.root.key = self.generateKey()
         self.root.keyid = self.generateKeyId()
     
@@ -100,6 +100,7 @@ class LKH :
         """
         Mets à jours la clé de node jusqu'à root
         """
+        print(f"Starting Update on node {node}")
         for i in nodesToDelete :
             if self.debug : 
                 print(f"Deleting key {i.keyid}")
@@ -109,7 +110,7 @@ class LKH :
         
         path = {}
         current:None|Node = node
-        lastOne:None|Node = None 
+        lastOne:None|Node = None # Est-ce le noeud feuille duquel on part ?
         while current is not None : 
             
             oldKey = current.key
@@ -119,7 +120,11 @@ class LKH :
                 print(f"[Node  : {current.id}][{current.keyid}]Old : {oldKey.hex()} New : {current.key.hex()}")
             path[current.keyid] = current.key
             if lastOne != None: 
-                
+                print("-------------------------------------------")
+                print(current)
+                print(current.parent)
+                print(current.right)
+                print(current.left)
                 assert current.left is not None 
                 assert current.right is not None 
                 packetData = KeyUpdatePacket(newKey=current.key,newKeyid=current.keyid,isSessionKey=(current==self.root),deleteNewKey=False)
@@ -254,6 +259,9 @@ class LKH :
         parent.left = otherNode.left
         parent.right = otherNode.right 
         parent.user = otherNode.user
+        
+        self.nodes[parent.keyid] = parent
+        del self.nodes[nodeToBeDeleted.keyid]
         if len(self.depth[parentDepth])<=0 :
             self.depth[parentDepth] = set([parent.keyid])
         else : 
@@ -280,6 +288,8 @@ class LKH :
 
     
     def addUser(self,user:User) :
+        if user in self.users : 
+            raise Exception("User Already in Graph")
         if self.debug : 
             print(f"Adding user {user}") 
         if len(self.users) <=0 :
@@ -337,8 +347,11 @@ class LKH :
     
 #Full ChatGPT 
 
-def draw_tree_matplotlib(root,maxY=None,specialKeys:list[int]=[]):
-    fig, ax = plt.subplots(figsize=(20, 10))
+def draw_tree_matplotlib(root,maxY=None,specialKeys:list[int]=[],ax:None|Axes=None):
+    if ax is None :
+        fig, ax = plt.subplots(figsize=(20, 10))
+    else : 
+        fig = ax.figure 
     ax.set_axis_off()
 
     def draw_node(node:Node, x, y, dx,ax):
