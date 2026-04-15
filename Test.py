@@ -13,7 +13,7 @@ class TestUser(Tree.User) :
     totalCount = 1
     numberOfMulticast = 0
     numberOfUnicast = 0
-    realist=False
+    realist=True #Si vrai, décode réellement les paquets reçus
     def __init__(self) -> None:
         super().__init__(userID=str(TestUser.totalCount), send=self.receive)
         TestUser.totalCount+=1
@@ -273,7 +273,13 @@ def interractiveTest() :
                 exit(-1)
             else : 
                 traceback.print_exc()
-            
+
+def testGroup() : 
+    test = Tree.LKH(TestUser.sendGroup,debug=True)
+    Users = [TestUser() for i in range(10)]
+    test.addUserGroup(Users[:2])
+    print(test)
+      
 if __name__ == "__main__" : 
 
     
@@ -284,7 +290,7 @@ if __name__ == "__main__" :
     #test_del()
     #show_draw()
     #show_Worst_Case_remove()
-    TestUser.realist= False #Remove decryption, takes too long
+    """    TestUser.realist= False #Remove decryption, takes too long
     print("Test with 8 users and 256 actions\n")
     randomTest(nuser=8,n=256)
     TestUser.reset()
@@ -293,7 +299,10 @@ if __name__ == "__main__" :
     TestUser.reset()
     print("Test with 10**4 users and 10**6 actions\n")
     randomTest(n=10**6,nuser=10**4)
-    TestUser.reset()
+    TestUser.reset()"""
+    
     #interractiveTest()
+    
+    testGroup()
     pass
     

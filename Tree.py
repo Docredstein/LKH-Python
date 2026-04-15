@@ -96,7 +96,8 @@ class LKH :
         self.root.keyid = self.generateKeyId()
     
     
-    def updateKey(self,node:Node,nodesToDelete:list[Node]=[]) :
+        
+    def updateKey(self,node:Node,nodesToDelete:list[Node]=[],alreadyUpdated:set[int]=set()) :
         """
         Mets à jours la clé de node jusqu'à root
         """
@@ -113,7 +114,9 @@ class LKH :
         current:None|Node = node
         lastOne:None|Node = None # Est-ce le noeud feuille duquel on part ?
         while current is not None : 
-            
+            if current.keyid in alreadyUpdated :
+                path[current.keyid] = current.key
+                continue
             oldKey = current.key
             
             current.key = self.generateKey()
@@ -142,7 +145,7 @@ class LKH :
                     print(f"Sending keys {current.keyid} to node {current.right.id}: {packet.hex()}")
                 self.sendGroup(packet)
              
-                
+            alreadyUpdated.add(current.keyid)  
             lastOne = current    
             current = current.parent
         if node.user is not None :
@@ -172,7 +175,7 @@ class LKH :
             
 
         
-    def splitNode(self,nodeToSplit:Node,userToAdd:User):
+    def splitNode(self,nodeToSplit:Node,userToAdd:User,shouldUpdateKey:bool=True):
         """
         Sépare la nodeToSplit en ajoutant la nodeToAdd et en descendant son utilisateur
         """
@@ -217,7 +220,10 @@ class LKH :
             self.depth[parentDepth+1] = set([left.keyid,right.keyid])
         if self.debug :
             print(f"Before update topo : {self}")
-        self.updateKey(right)
+        if shouldUpdateKey : 
+            self.updateKey(right)
+        
+            
     
     def fixDepthDict(self,node:Node,initialDepth:int) :
         if node.user is not None : 
@@ -319,7 +325,34 @@ class LKH :
         if self.debug:
             print(f"Going to split node {parent}")
         self.splitNode(parent,user)
-    
+    def addUserGroup(self,users:list[User]) -> None :
+        """
+        Le concept ici, ça va être de faire tout les changements sans update les clés mais en marquant tout les noeuds à changer pour grouper le tout
+        """
+        #TODO : Handle the case where the tree is empty
+        
+        for user in users : 
+            if user in self.users : 
+                print(f"User {user} already in graph")
+                continue 
+            if len(self.users) <=0 :
+                if self.debug:
+                    print("First User !")
+                self.root.user = user
+                self.updateKey(self.root)
+                self.users[user.userID] = self.root
+                self.depth[0] = set([self.root.keyid])
+                self.nodes[self.root.keyid] = self.root
+            else :
+                targetDepth = min([i for i in self.depth if len(self.depth[i])>0])
+                targetParentNode = self.nodes[next(iter(self.depth[targetDepth]))]
+                self.splitNode(targetParentNode,user,False) 
+        updatedNode:set[int] = set()
+        for user in users : 
+            print(updatedNode)
+            self.updateKey(self.users[user.userID],[],updatedNode)
+        
+            
     
     def generateKeyId(self) :
         if self.debug : 
