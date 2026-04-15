@@ -116,6 +116,8 @@ class LKH :
         while current is not None : 
             if current.keyid in alreadyUpdated :
                 path[current.keyid] = current.key
+                lastOne = current    
+                current = current.parent
                 continue
             oldKey = current.key
             
@@ -133,17 +135,23 @@ class LKH :
                 assert current.left is not None 
                 assert current.right is not None 
                 packetData = KeyUpdatePacket(newKey=current.key,newKeyid=current.keyid,isSessionKey=(current==self.root),deleteNewKey=False)
-                packet = self.encrypt(key=current.left.key,data=packetData.toBytes(),aad=current.left.keyid.to_bytes(8))
+                if current.left.key != b"" :
+                    packet = self.encrypt(key=current.left.key,data=packetData.toBytes(),aad=current.left.keyid.to_bytes(8))
                 
-                if self.debug : 
-                    print(f"Sending keys {current.keyid} to node {current.left.id}: {packet.hex()}")
-                self.sendGroup(packet)
+                    if self.debug : 
+                        print(f"Sending keys {current.keyid} to node {current.left.id}: {packet.hex()}")
+                    self.sendGroup(packet)
+                elif self.debug :
+                    print(f"Didn't send new keys to {current.left.id} because no keys have been assigned")
                 
-                packet = self.encrypt(key=current.right.key,data=packetData.toBytes(),aad=current.right.keyid.to_bytes(8))
-                
-                if self.debug : 
-                    print(f"Sending keys {current.keyid} to node {current.right.id}: {packet.hex()}")
-                self.sendGroup(packet)
+                if current.right.key != b"":  
+                    packet = self.encrypt(key=current.right.key,data=packetData.toBytes(),aad=current.right.keyid.to_bytes(8))
+                    
+                    if self.debug : 
+                        print(f"Sending keys {current.keyid} to node {current.right.id}: {packet.hex()}")
+                    self.sendGroup(packet)
+                elif self.debug:
+                    print(f"Didn't send new keys to {current.right.id} because no keys have been assigned")
              
             alreadyUpdated.add(current.keyid)  
             lastOne = current    

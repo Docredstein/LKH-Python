@@ -278,6 +278,8 @@ def testGroup() :
     test = Tree.LKH(TestUser.sendGroup,debug=True)
     Users = [TestUser() for i in range(10)]
     test.addUserGroup(Users[:2])
+    for user in Users : 
+        print(user)
     print(test)
       
 if __name__ == "__main__" : 
