@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 import matplotlib.pyplot as plt
 import random
-
+from tqdm import tqdm
 import traceback
 class TestUser(Tree.User) :
     changedKeys = set() 
@@ -13,6 +13,7 @@ class TestUser(Tree.User) :
     totalCount = 1
     numberOfMulticast = 0
     numberOfUnicast = 0
+    realist=False
     def __init__(self) -> None:
         super().__init__(userID=str(TestUser.totalCount), send=self.receive)
         TestUser.totalCount+=1
@@ -21,12 +22,13 @@ class TestUser(Tree.User) :
         self.sessionKey:int = 0
     def receive(self,data:bytes) -> None :
         TestUser.numberOfUnicast+=1
-        isSessionKey = bool.from_bytes(data[:1])
-        keyId = int.from_bytes(data[1:9])
-        key = data[9:]
-        self.keys[keyId] = key
-        if isSessionKey : 
-            self.sessionKey = keyId
+        if TestUser.realist :
+            isSessionKey = bool.from_bytes(data[:1])
+            keyId = int.from_bytes(data[1:9])
+            key = data[9:]
+            self.keys[keyId] = key
+            if isSessionKey : 
+                self.sessionKey = keyId
     def receiveGroup(self,data:bytes) -> None : 
         #print(f"ReceiveGroup called for {self.userID} with {data.hex()}")
         rawkeyId = data[:8]
@@ -63,8 +65,9 @@ class TestUser(Tree.User) :
     @staticmethod
     def sendGroup(data:bytes) -> None : 
         TestUser.numberOfMulticast+=1
-        for i in TestUser.instances : 
-            i.receiveGroup(data)
+        if TestUser.realist:
+            for i in TestUser.instances : 
+                i.receiveGroup(data)
     @staticmethod
     def reset() : 
         TestUser.changedKeys = set()
@@ -82,19 +85,28 @@ def test_Add() :
     test.addUser(Users[0])
     print(Users[0])
     print(test)
+    print(test.depth)
+    input("")
     print("++++++++++++")
+    
     test.addUser(Users[1])
     print(Users[0])
     print(Users[1])   
     print(test)
+    print(test.depth)
+    input("")
     print("++++++++++")
     test.addUser(Users[2])
     print(test)
     print(Users[0])
     print(Users[1])
     print(Users[2])
+    print(test.depth)
+    input("")
     test.addUser(Users[3])
     print(test)
+    print(test.depth)
+    input("")
     test.addUser(Users[4])
     print(test)
     printUsers()
@@ -131,6 +143,8 @@ def show_draw():
         
 
     for i in Users : 
+        print(test.depth)
+        input("")
         if i.userID == "18" :
  
             a = 1
@@ -177,31 +191,39 @@ def show_Worst_Case_remove() :
     fig.clear()
     
 def randomTest(n = 10000, nuser = 256) : 
-    test = Tree.LKH(TestUser.sendGroup,debug=True)
+    test = Tree.LKH(TestUser.sendGroup,debug=False)
     Users = [TestUser() for i in range(nuser)]
     isInGraph = [0]*nuser
-    
-    for essais in range(n) : 
+    Actions = []
+    naiveCount = 0
+    for essais in tqdm(range(n)) : 
         i = random.randrange(0,nuser)
         try : 
             #fig_before = Tree.draw_tree_matplotlib(test.root,maxY=7)
-            
+            naiveCount += sum(isInGraph)
             if isInGraph[i] : 
                 test.removeUser(Users[i])
+                Actions.append(f"Rem {Users[i].userID}")
             else :
                 test.addUser(Users[i])
+                Actions.append(f"Add {Users[i].userID}")
             #fig_before.clear()
+            #print(test.depth)
+            #input(f"{Actions[-1]}")
             
         except Exception as e: 
+            traceback.print_exc()
             print(f"Error for node [{"Join" if not isInGraph[i] else "Leave"}] {Users[i]} ")
             #print(test)
             print("Nodes : ")
+            print(f"Stored keyIds : {list(test.nodes.keys())}")
             for n in test.nodes : 
-                ln = test.nodes[i]
+                ln = test.nodes[n]
                 print(f"{ln.id}, {ln.keyid}")
             #print(f"Error : {e.with_traceback(None)}")
-            traceback.print_exc()
+            
             print(test.depth)
+            print(Actions)
             fig = Tree.draw_tree_matplotlib(test.root,maxY=7)
             
             #fig.savefig(f"./images/DebugR4.png",dpi=200)
@@ -210,7 +232,11 @@ def randomTest(n = 10000, nuser = 256) :
             
             exit(-1)
         isInGraph[i] = 1- isInGraph[i]
-        
+    print(f"Total Keys at the end : {len(test.nodes.keys())}")
+    print(f"Multicasts Messages : {TestUser.numberOfMulticast}")
+    print(f"Unicast Messages : {TestUser.numberOfUnicast}")
+    print(f"Unicast Message in Naïve method: {naiveCount}")
+    print(f"Ratio : {(TestUser.numberOfMulticast+TestUser.numberOfUnicast)*100/naiveCount:.2f}%")
 def interractiveTest() : 
     test = Tree.LKH(TestUser.sendGroup,debug=True)
     Users = [TestUser() for i in range(10)]
@@ -233,6 +259,7 @@ def interractiveTest() :
                 print(f"Parent of {nl} is ==> {nl.parent}")
             ax.clear()
             Tree.draw_tree_matplotlib(test.root,maxY=7,ax=ax)
+            print(test.depth)
             plt.pause(0.1)
             
         except Exception as e:
@@ -257,7 +284,16 @@ if __name__ == "__main__" :
     #test_del()
     #show_draw()
     #show_Worst_Case_remove()
-    randomTest(nuser=8)
+    TestUser.realist= False #Remove decryption, takes too long
+    print("Test with 8 users and 256 actions\n")
+    randomTest(nuser=8,n=256)
+    TestUser.reset()
+    print("Test with 256 users and 10000 actions\n")
+    randomTest()
+    TestUser.reset()
+    print("Test with 10**4 users and 10**6 actions\n")
+    randomTest(n=10**6,nuser=10**4)
+    TestUser.reset()
     #interractiveTest()
     pass
     

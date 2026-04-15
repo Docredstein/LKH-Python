@@ -100,7 +100,8 @@ class LKH :
         """
         Mets à jours la clé de node jusqu'à root
         """
-        print(f"Starting Update on node {node}")
+        if self.debug :
+            print(f"Starting Update on node {node}")
         for i in nodesToDelete :
             if self.debug : 
                 print(f"Deleting key {i.keyid}")
@@ -120,11 +121,12 @@ class LKH :
                 print(f"[Node  : {current.id}][{current.keyid}]Old : {oldKey.hex()} New : {current.key.hex()}")
             path[current.keyid] = current.key
             if lastOne != None: 
-                print("-------------------------------------------")
-                print(current)
-                print(current.parent)
-                print(current.right)
-                print(current.left)
+                if self.debug:
+                    print("-------------------------------------------")
+                    print(current)
+                    print(current.parent)
+                    print(current.right)
+                    print(current.left)
                 assert current.left is not None 
                 assert current.right is not None 
                 packetData = KeyUpdatePacket(newKey=current.key,newKeyid=current.keyid,isSessionKey=(current==self.root),deleteNewKey=False)
@@ -181,7 +183,8 @@ class LKH :
         right.parent = nodeToSplit
         parentDepth = nodeToSplit.depth
         left = copy(nodeToSplit)
-        print(self.depth)
+        if self.debug:
+            print(self.depth)
         self.depth[parentDepth].remove(nodeToSplit.keyid)
         left.id = nodeToSplit.id * 2    
         nodeToSplit.user = None 
@@ -246,8 +249,9 @@ class LKH :
         #    self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(otherNode))
         
         #self.depth[parentDepth+1].pop(self.depth[parentDepth+1].index(nodeToBeDeleted))
-        print(parentDepth)
-        print(self.depth)
+        if self.debug:
+            print(parentDepth)
+            print(self.depth)
         self.depth[parentDepth+1].remove(nodeToBeDeleted.keyid)
         
 
@@ -262,10 +266,15 @@ class LKH :
         
         self.nodes[parent.keyid] = parent
         del self.nodes[nodeToBeDeleted.keyid]
-        if len(self.depth[parentDepth])<=0 :
-            self.depth[parentDepth] = set([parent.keyid])
-        else : 
-            self.depth[parentDepth].add(parent.keyid)
+        if self.debug:
+            print(f"Adding the parent KeyId {parent.keyid} to depth {parentDepth}")
+        if parent.user is not None : #Est-ce que otherNode est une feuille ?
+            if len(self.depth[parentDepth])<=0 :
+                self.depth[parentDepth] = set([parent.keyid])
+            else : 
+                self.depth[parentDepth].add(parent.keyid)
+        
+            self.depth[parentDepth+1].remove(parent.keyid)
         self.fixDepthDict(parent,parentDepth)
         # C'est vraiment pas idéal mais je ne suis pas sûr de comment faire mieux 
         
@@ -298,8 +307,8 @@ class LKH :
             self.root.user = user
             self.updateKey(self.root)
             self.users[user.userID] = self.root
-            self.depth[0] = set([self.root.id])
-            self.nodes[self.root.id] = self.root
+            self.depth[0] = set([self.root.keyid])
+            self.nodes[self.root.keyid] = self.root
             return 
         targetDepth = min([i for i in self.depth if len(self.depth[i])>0])
         for i in self.depth[targetDepth] : 
@@ -307,8 +316,8 @@ class LKH :
             parent = self.nodes[i]
             break
         #parent = [i for i in self.depth[targetDepth] if i.id ==nextNodeiD][0]
-        
-        print(f"Going to split node {parent}")
+        if self.debug:
+            print(f"Going to split node {parent}")
         self.splitNode(parent,user)
     
     

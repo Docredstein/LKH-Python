@@ -13,7 +13,7 @@ Il faut donc séparer id de noeud et id de clé. l'id de noeud peut changer avec
 ```
 +-------------------+--------------+-------------+--------------------------------------+
 |                   |              |             |                                      |
-|  Clé de session?  | id de la clé |    nonce    | Nouvelle clé chiffré par l'ancienne  |
+|       Flags       | id de la clé |    nonce    | Nouvelle clé chiffré par l'ancienne  |
 |       1 byte      |   8 bytes    |   12 bytes  |                                      |
 |                   |              |             |                                      |
 +-------------------+--------------+-------------+--------------------------------------+
