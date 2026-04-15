@@ -1,0 +1,21 @@
+Test with 8 users and 256 actions
+
+Total Keys at the end : 17
+Multicasts Messages : 913
+Unicast Messages : 629
+Unicast Message in Naïve method: 886
+Ratio : 174.04%
+Test with 256 users and 10000 actions
+
+Total Keys at the end : 5167
+Multicasts Messages : 135844
+Unicast Messages : 73251
+Unicast Message in Naïve method: 1254768
+Ratio : 16.66%
+Test with 10**4 users and 10**6 actions
+
+Total Keys at the end : 507580
+Multicasts Messages : 24349049
+Unicast Messages : 12084330
+Unicast Message in Naïve method: 4979137876
+Ratio : 0.73%
