@@ -138,6 +138,7 @@ def show_draw():
         stats = TestUser.getStats()
         TestUser.reset()
         fig = Tree.draw_tree_matplotlib(test.root,maxY=7,specialKeys=stats["keys"])
+        
         fig.savefig(f"./images/tree_A{int(i.userID):02d}.svg",dpi=200)
         fig.clear()
         
@@ -224,6 +225,7 @@ def randomTest(n = 10000, nuser = 256) :
             
             print(test.depth)
             print(Actions)
+            print(test)
             fig = Tree.draw_tree_matplotlib(test.root,maxY=7)
             
             #fig.savefig(f"./images/DebugR4.png",dpi=200)
@@ -273,15 +275,21 @@ def interractiveTest() :
                 exit(-1)
             else : 
                 traceback.print_exc()
+                print(test)
 
 def testGroup() : 
     test = Tree.LKH(TestUser.sendGroup,debug=True)
     Users = [TestUser() for i in range(10)]
-    test.addUserGroup(Users[:2])
+    test.addUserGroup(Users[:1])
     for user in Users : 
         print(user)
     print(test)
-      
+    
+    
+    test.addUserGroup(Users[1:3])
+    for user in Users : 
+        print(user)
+    print(test)
 if __name__ == "__main__" : 
 
     
@@ -292,6 +300,7 @@ if __name__ == "__main__" :
     #test_del()
     #show_draw()
     #show_Worst_Case_remove()
+    #randomTest(n=20000,nuser=8)
     """    TestUser.realist= False #Remove decryption, takes too long
     print("Test with 8 users and 256 actions\n")
     randomTest(nuser=8,n=256)

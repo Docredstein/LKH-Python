@@ -2,13 +2,14 @@ import cryptography
 import os
 import math
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from collections.abc import Callable
+from collections.abc import Callable,Sequence
 from uuid import uuid4
 from colorama import Fore,init
 from random import randint
 from copy import copy
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+import traceback
 init()
 
 
@@ -97,10 +98,12 @@ class LKH :
     
     
         
-    def updateKey(self,node:Node,nodesToDelete:list[Node]=[],alreadyUpdated:set[int]=set()) :
+    def updateKey(self,node:Node,nodesToDelete:list[Node]=[],alreadyUpdated:set[int]|None=None) :
         """
         Mets à jours la clé de node jusqu'à root
         """
+        if alreadyUpdated is None : 
+            alreadyUpdated = set()
         if self.debug :
             print(f"Starting Update on node {node}")
         for i in nodesToDelete :
@@ -167,10 +170,15 @@ class LKH :
     def encrypt(self,key:bytes,data:bytes,aad:bytes) -> bytes :
         match self.algorithm :
             case "AES256-GCM" : 
-                aesgcm = AESGCM(key)
-                nonce = os.urandom(12)
-                ct = aesgcm.encrypt(nonce,data,aad)
-                return aad + nonce+ct
+                try:
+                    aesgcm = AESGCM(key)
+                    nonce = os.urandom(12)
+                    ct = aesgcm.encrypt(nonce,data,aad)
+                    return aad + nonce+ct
+                except:
+                    traceback.print_exc()
+                    print(f"Tried to use key {key}")
+                    raise Exception()
             case _ :
                 raise UnsupportedAlgorithm
         
@@ -333,7 +341,7 @@ class LKH :
         if self.debug:
             print(f"Going to split node {parent}")
         self.splitNode(parent,user)
-    def addUserGroup(self,users:list[User]) -> None :
+    def addUserGroup(self,users:Sequence[User]) -> None :
         """
         Le concept ici, ça va être de faire tout les changements sans update les clés mais en marquant tout les noeuds à changer pour grouper le tout
         """
