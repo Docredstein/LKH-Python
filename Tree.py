@@ -233,19 +233,18 @@ class LKH:
 
     def updateKeyByLayer(self, users: dict[int, set[Node]]):
         # users is a dict associating depth --> set of users newly added to depth
-        alreadyUpdated:set[int] = set()
-        
-        newUsersNode:list[Node] = []
-        for i in users :
+        alreadyUpdated: set[int] = set()
+
+        newUsersNode: list[Node] = []
+        for i in users:
             newUsersNode += list(users[i])
-        
-        
+
         while len(users) > 0:
-            currentDepth = max([i for i in users if len(users[i])>0])
+            currentDepth = max([i for i in users if len(users[i]) > 0])
             currentNode = users[currentDepth].pop()
-            if len(users[currentDepth]) <= 0 :
+            if len(users[currentDepth]) <= 0:
                 del users[currentDepth]
-            if currentNode.parent is  None or currentNode.parent.keyid in alreadyUpdated: 
+            if currentNode.parent is None or currentNode.parent.keyid in alreadyUpdated:
                 continue
             parent = currentNode.parent
             parent.key = self.generateKey()
@@ -254,21 +253,20 @@ class LKH:
             alreadyUpdated.add(parent.keyid)
             if parent != None:
 
-                if currentDepth - 1  in users:
+                if currentDepth - 1 in users:
                     users[currentDepth - 1].add(parent)
                 else:
                     users[currentDepth - 1] = set([parent])
-                
-        for node in newUsersNode : 
+
+        for node in newUsersNode:
             path = {}
             current = node
             node.key = self.generateKey()
-            while current is not None : 
+            while current is not None:
                 path[current.keyid] = current.key
                 current = current.parent
-        
-            self.sendKeyUsingUnicast(node,path)
-            
+
+            self.sendKeyUsingUnicast(node, path)
 
     def encrypt(self, key: bytes, data: bytes, aad: bytes) -> bytes:
         match self.algorithm:
@@ -567,5 +565,3 @@ def draw_tree_matplotlib(
 
         ax.set_ylim(-maxY, 0.1)
     return fig
-
-

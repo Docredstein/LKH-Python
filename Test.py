@@ -336,7 +336,7 @@ def testGroup():
     print(test)
     for user in Users:
         print(user)
-    
+
 
 if __name__ == "__main__":
 
