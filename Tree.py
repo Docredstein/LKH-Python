@@ -233,23 +233,42 @@ class LKH:
 
     def updateKeyByLayer(self, users: dict[int, set[Node]]):
         # users is a dict associating depth --> set of users newly added to depth
-        alreadyUpdated = {}
-        IndividualsPath: dict[str, dict[int, bytes]] = {}
+        alreadyUpdated:set[int] = set()
+        
+        newUsersNode:list[Node] = []
+        for i in users :
+            newUsersNode += list(users[i])
+        
+        
         while len(users) > 0:
-            currentDepth = max(users)
+            currentDepth = max([i for i in users if len(users[i])>0])
             currentNode = users[currentDepth].pop()
-            assert currentNode.parent is not None
+            if len(users[currentDepth]) <= 0 :
+                del users[currentDepth]
+            if currentNode.parent is  None or currentNode.parent.keyid in alreadyUpdated: 
+                continue
             parent = currentNode.parent
             parent.key = self.generateKey()
 
-            a = 1
+            self.sendKeyToChildren(parent)
+            alreadyUpdated.add(parent.keyid)
+            if parent != None:
 
-            if currentNode.parent != self.root:
-
-                if currentDepth - 1 not in users:
-                    users[currentDepth - 1].add(currentNode.parent)
+                if currentDepth - 1  in users:
+                    users[currentDepth - 1].add(parent)
                 else:
-                    users[currentDepth - 1] = set([currentNode.parent])
+                    users[currentDepth - 1] = set([parent])
+                
+        for node in newUsersNode : 
+            path = {}
+            current = node
+            node.key = self.generateKey()
+            while current is not None : 
+                path[current.keyid] = current.key
+                current = current.parent
+        
+            self.sendKeyUsingUnicast(node,path)
+            
 
     def encrypt(self, key: bytes, data: bytes, aad: bytes) -> bytes:
         match self.algorithm:
@@ -548,3 +567,5 @@ def draw_tree_matplotlib(
 
         ax.set_ylim(-maxY, 0.1)
     return fig
+
+

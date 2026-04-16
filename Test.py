@@ -329,10 +329,14 @@ def testGroup():
     print(test)
 
     test.addUserGroup(Users[1:3])
+    print(test)
     for user in Users:
         print(user)
+    test.addUserGroup(Users[3:8])
     print(test)
-
+    for user in Users:
+        print(user)
+    
 
 if __name__ == "__main__":
 
