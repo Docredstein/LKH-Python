@@ -1,6 +1,7 @@
 # Test LKH en vue d'une application à fcQUIC 
 Je vais (essayer d') implémenter l'architecture du schéma classique présenté dans : https://users.ece.cmu.edu/~adrian/731-sp04/readings/CGIMNP99.pdf 
 
+C'est donc une organisation sous forme d'arbre binaire des clés pour rekey efficacement.
 
 ## Conception : 
 ### Serveur
@@ -18,3 +19,9 @@ Il faut donc séparer id de noeud et id de clé. l'id de noeud peut changer avec
 |                   |              |             |                                      |
 +-------------------+--------------+-------------+--------------------------------------+
 ```
+Les flags sont : 
+
+isSessionKey = 1
+deleteNewKey = 2
+
+Des exemples d'ajout (A) et d'expulsion (R) sont présents dans le dossier /images/

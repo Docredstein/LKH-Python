@@ -341,8 +341,12 @@ def testLKHPlus() :
     test = Tree.LKHPlus(TestUser.sendGroup, debug=False,allowableUnorderedUserCount=4
                         )
     Users = [TestUser() for i in range(10)]
-    for i in range(8):
+    for i in range(10):
         test.addUser(Users[i])
+        print(test)
+    for i in range(10): 
+        print(f"Removing {Users[i]}")
+        test.removeUser(Users[i])
         print(test)
 if __name__ == "__main__":
 
