@@ -565,3 +565,50 @@ def draw_tree_matplotlib(
 
         ax.set_ylim(-maxY, 0.1)
     return fig
+
+
+class LKHPlus(LKH) : 
+    def __init__(self, sendGroup: Callable[[bytes], None], debug=False, allowableUnorderedUserCount:int=256) -> None:
+        super().__init__(sendGroup, debug)
+        self.unorderedUsers:set[User] = set()
+        self.allowableUnorderedUserCount = allowableUnorderedUserCount
+        
+    def addUser(self, user: User):
+        
+        if len(self.unorderedUsers) +1 >= self.allowableUnorderedUserCount:
+            # Then we need to sort the users into the tree 
+            if self.debug:
+                print(f"Sorting the unordered users into the tree, currently {len(self.unorderedUsers)} unordered users")
+            self.addUserGroup(list(self.unorderedUsers) + [user])
+            self.unorderedUsers = set()
+            return 
+        else :
+            self.unorderedUsers.add(user)
+            self.root.key = self.generateKey()
+            if self.root.left is not None and self.root.right is not None:
+                self.sendKeyToChildren(self.root)
+            for user in self.unorderedUsers:
+                self.sendKeyToUserDirectly(user, self.root.keyid, self.root.key)
+                
+    def removeUser(self, user: User):
+        if user in self.unorderedUsers:
+
+            self.unorderedUsers.remove(user)
+            self.root.key = self.generateKey()
+            if self.root.left is not None and self.root.right is not None:
+                self.sendKeyToChildren(self.root) 
+        else : 
+            super().removeUser(user)
+            
+            
+        for user in self.unorderedUsers:
+            self.sendKeyToUserDirectly(user, self.root.keyid, self.root.key)
+        
+    
+    def sendKeyToUserDirectly(self, user:User,rootKeyId:int, rootKey:bytes):
+        if self.debug:
+            print(f"Sending the root key directly to {user}")
+        user.send(True.to_bytes() + rootKeyId.to_bytes(8) + rootKey)
+    
+    def __repr__(self) -> str:
+        return super().__repr__() + f"\nUnordered Users : {[user.userID for user in self.unorderedUsers]}"

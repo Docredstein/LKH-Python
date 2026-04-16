@@ -337,7 +337,13 @@ def testGroup():
     for user in Users:
         print(user)
 
-
+def testLKHPlus() : 
+    test = Tree.LKHPlus(TestUser.sendGroup, debug=False,allowableUnorderedUserCount=4
+                        )
+    Users = [TestUser() for i in range(10)]
+    for i in range(8):
+        test.addUser(Users[i])
+        print(test)
 if __name__ == "__main__":
 
     # test_Add()
@@ -358,7 +364,7 @@ if __name__ == "__main__":
 
     # interractiveTest()
 
-    testGroup()
-
+    #testGroup()
+    testLKHPlus()
     # dynamicDemo()
     pass
