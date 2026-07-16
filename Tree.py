@@ -217,13 +217,13 @@ class LKH:
                     f"[Node  : {current.id}][{current.keyid}]Old : {oldKey.hex()} New : {current.key.hex()}"
                 )
             path[current.keyid] = current.key
-            if lastOne != None:
+            if current.user is  None:
                 if self.debug:
                     print("-------------------------------------------")
-                    print(current)
-                    print(current.parent)
-                    print(current.right)
-                    print(current.left)
+                    print(f"current : {current}")
+                    print(f"parent : {current.parent}")
+                    print(f"right : {current.right}")
+                    print(f"left : {current.left}")
                 self.sendKeyToChildren(current)
             alreadyUpdated.add(current.keyid)
             lastOne = current
@@ -392,7 +392,7 @@ class LKH:
 
             self.depth[parentDepth + 1].remove(parent.keyid)
         self.fixDepthDict(parent, parentDepth)
-        # C'est vraiment pas idéal mais je ne suis pas sûr de comment faire mieux
+        # C'est vraiment pas idéalf mais je ne suis pas sûr de comment faire mieux
 
         if parent.left is not None:
             parent.left.parent = parent
@@ -407,7 +407,10 @@ class LKH:
         if self.debug:
             print(f"After Update : \n{self}")
             # print(parent.parent)
-        self.updateKey(parent, nodesToDelete=[nodeToBeDeleted])
+        if parent.parent is not None :
+            self.updateKey(parent.parent, nodesToDelete=[nodeToBeDeleted])
+        else : #Il faut informer les utilisateurs du changement de root
+            self.updateKey(parent, nodesToDelete=[nodeToBeDeleted])
 
     def addUser(self, user: User):
         if user in self.users:
@@ -485,6 +488,7 @@ class LKH:
             print(
                 f"{Fore.LIGHTRED_EX}Removing {Fore.RESET} User {Fore.YELLOW}{user.userID}{Fore.RESET}"
             )
+            print(f"Before :\n{self}")
         node = self.users[user.userID]
         del self.users[user.userID]
         if node == self.root:
@@ -506,10 +510,10 @@ class LKH:
 
 
 def draw_tree_matplotlib(
-    root, maxY=None, specialKeys: list[int] = [], ax: None | Axes = None
+    root, maxY=None, specialKeys: list[int] = [], ax: None | Axes = None, fontsize=8
 ):
     if ax is None:
-        fig, ax = plt.subplots(figsize=(20, 10))
+        fig, ax = plt.subplots(figsize=(18, 10))
     else:
         fig = ax.figure
     ax.set_axis_off()
@@ -532,9 +536,9 @@ def draw_tree_matplotlib(
             ha="center",
             va="center",
             bbox=dict(boxstyle="circle", fc=nodeColor, ec="black"),
-            fontsize=6,
+            fontsize=fontsize,
         )
-        ax.text(x, y - 0.3, f"{node.keyid}", ha="center", va="center", fontsize=8)
+        ax.text(x, y - 0.35, f"{node.keyid}", ha="center", va="center", fontsize=fontsize)
         if node.user is not None:
             ax.text(
                 x,
@@ -542,7 +546,7 @@ def draw_tree_matplotlib(
                 f"{node.user.userID}",
                 ha="center",
                 va="center",
-                fontsize=16,
+                fontsize=fontsize,
                 c="red",
             )
         # Enfant gauche
